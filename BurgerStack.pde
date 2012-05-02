@@ -77,16 +77,17 @@ void setup() {
 }
 
 void draw(){
+	TWEEN.update();
 	drawBackground();
 	drawSidebar();
 }
 
 void drawSidebar(){
 	imageMode(CORNERS);
-	image(sidebar,205,10);
 	
-	buttonMgr.update();
 	sliceMgr.update();
+	image(sidebar,205,10);
+	buttonMgr.update();
 	
 	mouseRel = false;
 }
@@ -129,41 +130,52 @@ void addSlice(PImage foodType, int offsetX, int offsetY){
 //
 
 class FoodSlice {
-	float x;
-	float y;
-	float tx;
-	float ty;
-	Tween tx;
-	Tween ty;
+	var position;
 	PImage foodGraphic;
 	int offsetX;
 	int offsetY;
 	
-	public FoodSlice(float ix, float iy, float itx, float ity, PImage ifoodGraphic,int offsetX, int offsetY) {
-		this.x = ix;
-		this.y = iy;
-		this.tx = itx;
-		this.ty = ity;
+	public FoodSlice(int ix, int iy, int itx, int ity, PImage ifoodGraphic, int ioffsetX, int ioffsetY) {
+		position = {x: ix, y: iy};
 		this.foodGraphic = ifoodGraphic;
-		this.offsetX = offsetX;
-		this.offsetY = offsetY;
-		tx = new Tween(this, "x", Tween.strongEaseInOut, x, tx, 0.01);
-		ty = new Tween(this, "y", Tween.bounceEaseOut, y, ty, 0.8);
-		tx.start();
-		ty.start();
+		this.offsetX = ioffsetX;
+		this.offsetY = ioffsetY;
+		
+		tween = new TWEEN.Tween(position)
+			.to({x: itx, y: ity}, 800)
+			.easing(TWEEN.Easing.Bounce.Out);
+		tween.start();
+		
+		
+		
 	}
 	public void update() {
-		tx.tick();
-		ty.tick();
+		// tx.tick();
+		// ty.tick();
 	}
 
 	public void draw() {
-		image(foodGraphic,x+offsetX,y+offsetY);
+		image(foodGraphic,position.x+offsetX,position.y+offsetY);
 	}
 
-	public void tweenTo(x2,y2) {
-		tx.continueTo(x2,2);
-		ty.continueTo(y2,2);
+	public void tweenTo(itx,ity) {
+		tween = new TWEEN.Tween(position)
+			.to({x: itx, y: ity}, 800)
+			.easing(TWEEN.Easing.Sinusoidal.In)
+			.onComplete(sliceMgr.clear);
+		tween.start();
+	}
+
+	public void serveThis() {
+		
+		tween = new TWEEN.Tween(position)
+			.to({x: -300, y: position.y}, 500)
+			.easing(TWEEN.Easing.Back.In)
+			.onComplete(deleteMe);
+		tween.start();
+	}
+	public void deleteMe(){
+		// sliceMgr.clear();	
 	}
 }
 
@@ -186,6 +198,7 @@ class SpriteManager {
 		}
 	}
 	public void clear(){
+		console.log("Clearing SpriteManager");
 		sprites = [];
 	}
 }
@@ -280,12 +293,30 @@ void generateStack(){
     console.log(targetStack);
 }
 
-void serve(){
-	for (var i = slices.length - 1; i >= 0; i--){
-		slices[i].tweenTo(-900,slices[i].y);
+var orders = function(){
+	this.serve = function() {
+        for (var i = slices.length - 1; i >= 0; i--){
+			slices[i].serveThis();
+		}
+		penY = 450;
+		
+	    return this;
+    }
+
+	this.nextOrder = function(){
+		targetStack = [];
+		// sliceMgr.clear();	
+		
+		drawBottomBun();	
+	    return this;
 	}
-	targetStack = [];
-	//sliceMgr.clear();
-	penY = 450;
-	drawBottomBun();	
+    
+    
+};
+
+var orderMgr = new orders(); 
+
+void serve(){
+	orderMgr.serve().nextOrder();
+	
 }
