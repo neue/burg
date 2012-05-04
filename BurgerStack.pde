@@ -43,12 +43,19 @@ penY = 450;
 
 boolean mouseRel;
 
+var gameLoop = new GameLoop();
+// Hack to set up first run
+boolean newStack = true;
+// End Hack
+boolean allowSlice = true;
+boolean stackCorrect = false;
+
+
 
 void setup() {
 	size(320, 480);
 	background(80,90,111);
 	image(wall,0,0);
-	
 	
 	// Setup Sidebar
 	buttonMgr		= new SpriteManager();
@@ -72,29 +79,75 @@ void setup() {
 
 	// Setup Food
 	sliceMgr		= new SpriteManager();
-	drawBottomBun();
+	// drawBottomBun();
 
 }
 
 void draw(){
-	TWEEN.update();
-	drawBackground();
-	drawSidebar();
+	gameLoop.update();
+    gameLoop.draw();
 }
 
-void drawSidebar(){
-	imageMode(CORNERS);
-	
-	sliceMgr.update();
-	image(sidebar,205,10);
-	buttonMgr.update();
-	
-	mouseRel = false;
+class GameLoop {
+    
+    public GameLoop(){}
+    
+    public void draw(){        
+		drawBackground();
+		drawForeground();
+        // sliceMgr.update();
+		mouseRel = false;
+
+    }
+    public void update(){
+        TWEEN.update();
+        if(newStack){
+            sliceMgr.clear();
+			console.log("Target stack:  "+targetStack);
+			console.log("Current Stack: "+currentStack);
+			stackCorrect = true;
+
+			if (currentStack.length == targetStack.length){
+				for (var i=0; i < currentStack.length; i++) {
+					if (currentStack[i] != targetStack[i]) {
+						stackCorrect = false;
+					}
+				}
+			} else {
+				stackCorrect = false;
+			}
+			
+			console.log("Won?:"+stackCorrect);
+
+            // if (targetStack == currentStack){
+            //     background(0,220,0);
+            // } else {
+            //     background(222,0,0);
+            // }
+            //currentStack = 0;
+            //targetStack = ceil(random(3,10));
+            newStack = false;
+			targetStack  = [];
+			currentStack = [];
+			
+			generateStack();
+
+			drawBottomBun();	
+  
+        }
+    }
 }
 
 void drawBackground(){
 	image(wall,0,0);
 	image(wood,0,450);	
+}
+
+void drawForeground(){
+	imageMode(CORNERS);	
+	sliceMgr.update();
+	image(sidebar,205,10);
+	buttonMgr.update();
 }
 
 void mousePressed() {
@@ -104,24 +157,23 @@ void mouseReleased() {
 	mouseRel = true;
 }
 
-void drawBottomBun(){ addSlice(food_bun_bottom	,0  ,0  ); }
-void drawTopBun()	{ addSlice(food_bun_top		,0  ,0  ); }
-void drawLettuce()	{ addSlice(food_lettuce		,-5 ,+6 ); }
-void drawTomato()	{ addSlice(food_tomato 		,-5 ,+5 ); }
-void drawCheese()	{ addSlice(food_cheese 		,-6 ,+7 ); }
-void drawBeef()		{ addSlice(food_beef   		,0  ,0  ); }
+var foodDescriptions = ["bottom bun","meat","cheese","tomato","lettuce","top bun"];
 
-void drawFood(PImage foodType, int offsetX, int offsetY){
-	penY = penY - foodType.height + offsetY;
-	console.log("penY:"+penY);
-	image(foodType,penX+offsetX,penY);
-}
+
+void drawBottomBun(){ addSlice(food_bun_bottom	,0  ,0  ); currentStack.push(0); }
+void drawTopBun()	{ addSlice(food_bun_top		,0  ,0  ); currentStack.push(5); }
+void drawLettuce()	{ addSlice(food_lettuce		,-5 ,+6 ); currentStack.push(4); }
+void drawTomato()	{ addSlice(food_tomato 		,-5 ,+5 ); currentStack.push(3); }
+void drawCheese()	{ addSlice(food_cheese 		,-6 ,+7 ); currentStack.push(2); }
+void drawBeef()		{ addSlice(food_beef   		,0  ,0  ); currentStack.push(1); }
 
 void addSlice(PImage foodType, int offsetX, int offsetY){
-	penY = penY - foodType.height + offsetY;
-	slices[sliceNumber] = new FoodSlice(36, -80, penX, penY,foodType,offsetX,0);
-	sliceMgr.add(slices[sliceNumber]);
-	sliceNumber++;
+	if (allowSlice) {    
+		penY = penY - foodType.height + offsetY;
+		slices[sliceNumber] = new FoodSlice(36, -80, penX, penY,foodType,offsetX,0);
+		sliceMgr.add(slices[sliceNumber]);
+		sliceNumber++;
+	}
 }
 
 
@@ -145,10 +197,8 @@ class FoodSlice {
 			.to({x: itx, y: ity}, 800)
 			.easing(TWEEN.Easing.Bounce.Out);
 		tween.start();
-		
-		
-		
 	}
+	
 	public void update() {
 		// tx.tick();
 		// ty.tick();
@@ -167,7 +217,7 @@ class FoodSlice {
 	}
 
 	public void serveThis() {
-		
+		allowSlice = false;
 		tween = new TWEEN.Tween(position)
 			.to({x: -300, y: position.y}, 500)
 			.easing(TWEEN.Easing.Back.In)
@@ -176,6 +226,8 @@ class FoodSlice {
 	}
 	public void deleteMe(){
 		// sliceMgr.clear();	
+		newStack = true;
+		
 	}
 }
 
@@ -192,14 +244,14 @@ class SpriteManager {
 	public void add(newSprite){	sprites.push(newSprite); }
 	
 	public void update(){
-		for (var i = sprites.length - 1; i >= 0; i--){
+		for (var i = sprites.length - 1; i >= 0; i--){			
 			sprites[i].update();
 			sprites[i].draw();
 		}
 	}
 	public void clear(){
-		console.log("Clearing SpriteManager");
 		sprites = [];
+		allowSlice = true;
 	}
 }
 
@@ -222,7 +274,7 @@ class ImgButton {
 		this.down = idown;
 		this.currentimage = base;
 		this.buttonFunction = ibuttonFunction;
-		console.log("Created button x:"+x+" y:"+y+" w:"+w+" h:"+h);
+		// console.log("Created button x:"+x+" y:"+y+" w:"+w+" h:"+h);
 	}
 	
 	public void update(){
@@ -268,55 +320,41 @@ void generateStack(){
     }
     targetStack.push(5);
     
+	// for (var i=0; i < targetStack.length; i++) {
+	// 	switch(targetStack[i]){
+	// 	case 0:			
+	// 	break;
+	// 	case 1:			
+	// 		drawBeef();
+	// 	break;
+	// 	case 2:			
+	// 		drawCheese();
+	// 	break;
+	// 	case 3:			
+	// 		drawTomato();
+	// 	break;
+	// 	case 4:			
+	// 		drawLettuce();
+	// 	break;
+	// 	case 5:			
+	// 		drawTopBun();
+	// 	break;
+	// 		
+	// 	}
+	//     }
+	
+	// Stack debug
+	console.log("-------------");
 	for (var i=0; i < targetStack.length; i++) {
-		switch(targetStack[i]){
-		case 0:			
-		break;
-		case 1:			
-			drawBeef();
-		break;
-		case 2:			
-			drawCheese();
-		break;
-		case 3:			
-			drawTomato();
-		break;
-		case 4:			
-			drawLettuce();
-		break;
-		case 5:			
-			drawTopBun();
-		break;
-			
-		}
-    }
+		console.log(foodDescriptions[targetStack[i]]);
+	}
     console.log(targetStack);
 }
 
-var orders = function(){
-	this.serve = function() {
-        for (var i = slices.length - 1; i >= 0; i--){
-			slices[i].serveThis();
-		}
-		penY = 450;
-		
-	    return this;
-    }
-
-	this.nextOrder = function(){
-		targetStack = [];
-		// sliceMgr.clear();	
-		
-		drawBottomBun();	
-	    return this;
-	}
-    
-    
-};
-
-var orderMgr = new orders(); 
-
 void serve(){
-	orderMgr.serve().nextOrder();
+    for (var i = slices.length - 1; i >= 0; i--){
+		slices[i].serveThis();
+	}
+	penY = 450;
 	
 }
